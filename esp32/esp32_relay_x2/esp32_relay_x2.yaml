@@ -69,10 +69,6 @@ esphome:
   project:
     name: "${project_name}"
     version: "${project_version}"
-  platformio_options:
-    board_build.mcu: esp32
-    board_build.variant: esp32
-    board_build.flash_mode: dio
 
 esp32:
   board: esp32dev
