@@ -7,7 +7,7 @@ substitutions:
   room: ""
   # Description as appears in ESPHome & top of webserver page
   device_description: "esp32 dual relay"
-  # Project Name
+  # Project Name (must be in "namespace.name" format, e.g. "author.project")
   project_name: "freman.esp32_relay_x2"
   # Project version denotes the release version of the yaml file, allowing checking of deployed vs latest version
   project_version: "v1"
@@ -73,7 +73,6 @@ esphome:
     board_build.mcu: esp32
     board_build.variant: esp32
     board_build.flash_mode: dio
-    board_upload.flash_size: 4MB
     board_build.partitions: default_4MB
 
 esp32:
