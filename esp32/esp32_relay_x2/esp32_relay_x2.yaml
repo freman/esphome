@@ -1,0 +1,307 @@
+substitutions:
+  # Default name
+  name: "esp32_relay_x2"
+  # Default friendly name
+  friendly_name: "ESP32 Relay X2"
+  # Allows ESP device to be automatically linked to an 'Area' in Home Assistant. Typically used for areas such as 'Lounge Room', 'Kitchen' etc
+  room: ""
+  # Description as appears in ESPHome & top of webserver page
+  device_description: "esp32 dual relay"
+  # Project Name
+  project_name: "China ESP32 Dual relay board"
+  # Project version denotes the release version of the yaml file, allowing checking of deployed vs latest version
+  project_version: "v1"
+  # Restore the relays upon reboot to state:
+  # Valid options: ALWAYS_ON, ALWAYS_OFF, RESTORE_DEFAULT_ON, RESTORE_DEFAULT_OFF,
+  #                RESTORE_INVERTED_DEFAULT_ON, RESTORE_INVERTED_DEFAULT_OFF, DISABLED
+  relay1_restore_mode: RESTORE_DEFAULT_ON
+  relay2_restore_mode: RESTORE_DEFAULT_ON
+  # Set to "true" to make this relay behave as a momentary/inching switch (auto-returns to its
+  # resting state after relayN_inch_duration) instead of a normal toggle switch. Set to "false"
+  # to disable inching entirely and just have a plain on/off switch.
+  relay1_inching_enabled: "false"
+  relay2_inching_enabled: "false"
+  # Only relevant when inching is enabled above. Leave "false" for the common case of a relay
+  # that's normally off and gets pulsed ON then auto-returns OFF (e.g. garage door button press).
+  # Set to "true" if the relay's normal resting state is ON (e.g. paired with relay1_restore_mode:
+  # RESTORE_DEFAULT_ON or ALWAYS_ON) - inching will then pulse OFF and auto-return ON instead
+  # (e.g. momentarily interrupting power to something that's normally powered).
+  relay1_inverted: "false"
+  relay2_inverted: "false"
+  # Inching / Pulse duration for relays (default 500ms). Change as needed.
+  relay1_inch_duration: 500ms   # e.g. 200ms, 500ms, 1s, etc.
+  relay2_inch_duration: 500ms   # e.g. 200ms, 500ms, 1s, etc.
+  # Set the update interval for sensors
+  sensor_update_interval: 10s
+  # Define a domain for this device to use. i.e. iot.home.lan (so device will appear as esp32-relay-x2.iot.home.lan in DNS/DHCP logs)
+  dns_domain: ".local"
+  # Set timezone of the smart plug. Useful if the plug is in a location different to the HA server. Can be entered in unix Country/Area format (i.e. "Australia/Sydney")
+  timezone: ""
+  # Set the duration between the sntp service polling ntp.org servers for an update
+  sntp_update_interval: 6h
+  # Network time servers for your region, enter from lowest to highest priority. To use local servers update as per zones or countries at: https://www.ntppool.org/zone/@
+  sntp_server_1: "0.pool.ntp.org"
+  sntp_server_2: "1.pool.ntp.org"
+  sntp_server_3: "2.pool.ntp.org"
+  # Enables faster network connections, with last connected SSID being connected to and no full scan for SSID being undertaken
+  wifi_fast_connect: "false"
+  # Define logging level: NONE, ERROR, WARN, INFO, DEBUG (Default), VERBOSE, VERY_VERBOSE
+  log_level: "INFO"
+  # Enable or disable the use of IPv6 networking on the device
+  ipv6_enable: "false"
+
+  icon: "electric-switch"
+
+  # The board has a programmable onboard LED. Confirmed relay pins (GPIO16/17, via multimeter
+  # continuity testing) match the ESPHome Devices community entry (devices.esphome.io/devices/
+  # esp32-relay-x2) rather than the vendor's own example firmware (which claimed GPIO26/27) -
+  # so that same entry's GPIO23 for the LED and GPIO0 for the onboard button are now trusted too.
+  status_led_pin: "GPIO23"
+  status_led_inverted: "false"   # flip to "true" if the LED behaves backwards (on when it should be off)
+
+esphome:
+  name: "${name}"
+  friendly_name: "${friendly_name}"
+  comment: "${device_description}"
+  area: "${room}"
+  name_add_mac_suffix: true
+  min_version: 2025.7.0
+  project:
+    name: "${project_name}"
+    version: "${project_version}"
+  platformio_options:
+    board_build.mcu: esp32
+    board_build.variant: esp32
+    board_build.flash_mode: dio
+    board_upload.flash_size: 4MB
+    board_build.partitions: default_4MB
+
+esp32:
+  board: esp32dev
+  variant: esp32
+  flash_size: 4MB          # Critical - the board has 4MB flash
+  framework:
+    type: esp-idf
+
+logger:
+  baud_rate: 0  # 0 Enables logging, but disables serial-port logging to free CPU and memory
+  level: ${log_level}
+
+mdns:
+  disabled: false
+
+api:
+  # reboot_timeout: 0s
+  # Only enable BLE tracking when wifi is up and api is connected
+  # Gives single-core ESP32-C3 devices time to manage wifi and authenticate with api
+  on_client_connected:
+     - esp32_ble_tracker.start_scan:
+        continuous: true
+  # Disable BLE tracking when there are no api connections live
+  on_client_disconnected:
+    if:
+      condition:
+        not:
+          api.connected:
+      then:
+        - esp32_ble_tracker.stop_scan:
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  domain: "${dns_domain}"
+  fast_connect: ${wifi_fast_connect}
+  ap:
+    ssid: "${friendly_name} Fallback Hotspot"
+    password: "LHmEv919aDOz"
+
+web_server:
+  port: 80
+
+network:
+  enable_ipv6: ${ipv6_enable}
+
+esp32_improv:
+  authorizer: none
+
+esp32_ble_tracker:
+  scan_parameters:
+    # Don't auto start BLE scanning, we control it in the `api` block's automation.
+    continuous: false
+    active: true  # send scan-request packets to gather more info, like device name for some devices.
+    interval: 320ms  # default 320ms - how long to spend on each advert channel
+    window:   300ms  # near-continuous active scan (default is 30ms); reduce this if the device becomes unstable
+    # If the device cannot keep up or becomes unstable, reduce the "window" setting. This may be
+    # required if your device is controlling other sensors or doing PWM for lights etc.
+
+bluetooth_proxy:
+  active: true
+
+captive_portal:
+
+status_led:
+  pin:
+    number: ${status_led_pin}
+    inverted: ${status_led_inverted}
+
+binary_sensor:
+  - platform: status
+    name: "Status"
+    icon: mdi:check-network-outline
+    entity_category: diagnostic
+
+  - platform: gpio
+    name: "Onboard Button"
+    id: onboard_button
+    pin:
+      number: GPIO0
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+      ignore_strapping_warning: true   # GPIO0 is a boot-strapping pin, but safe to read as a
+                                        # regular input once the device has finished booting
+    entity_category: diagnostic
+    on_multi_click:
+      # Short press (released within 1s): toggle Relay 1
+      - timing:
+          - ON for at most 1s
+          - OFF for at least 0.2s
+        then:
+          - switch.toggle: relay1
+      # Long press (held for 1s or more): toggle Relay 2
+      - timing:
+          - ON for at least 1s
+        then:
+          - switch.toggle: relay2
+
+sensor:
+  - platform: uptime
+    name: "Uptime Sensor"
+    id: uptime_sensor
+    type:
+      timestamp
+    entity_category: "diagnostic"
+
+  - platform: wifi_signal
+    name: "WiFi Signal dB"
+    id: wifi_signal_db
+    update_interval: 60s
+    entity_category: "diagnostic"
+
+  - platform: copy
+    source_id: wifi_signal_db
+    name: "WiFi Signal Percent"
+    filters:
+      - lambda: return min(max(2 * (x + 100.0), 0.0), 100.0);
+    unit_of_measurement: "Signal %"
+    entity_category: "diagnostic"
+    device_class: ""
+
+button:
+  - platform: restart
+    name: "Restart"
+    entity_category: config
+
+  - platform: factory_reset
+    name: "Factory Reset"
+    id: Reset
+    entity_category: config
+
+  - platform: safe_mode
+    name: "Safe Mode"
+    internal: false
+    entity_category: config
+
+switch:
+  - platform: gpio
+    name: "Relay 1"
+    pin: GPIO16
+    id: relay1
+    restore_mode: ${relay1_restore_mode}
+    icon: mdi:${icon}
+    on_turn_on:
+      - if:
+          condition:
+            lambda: 'return ${relay1_inching_enabled} && !${relay1_inverted};'
+          then:
+            - delay: ${relay1_inch_duration}
+            - switch.turn_off: relay1
+    on_turn_off:
+      - if:
+          condition:
+            lambda: 'return ${relay1_inching_enabled} && ${relay1_inverted};'
+          then:
+            - delay: ${relay1_inch_duration}
+            - switch.turn_on: relay1
+
+  - platform: gpio
+    name: "Relay 2"
+    pin: GPIO17
+    id: relay2
+    restore_mode: ${relay2_restore_mode}
+    icon: mdi:${icon}
+    on_turn_on:
+      - if:
+          condition:
+            lambda: 'return ${relay2_inching_enabled} && !${relay2_inverted};'
+          then:
+            - delay: ${relay2_inch_duration}
+            - switch.turn_off: relay2
+    on_turn_off:
+      - if:
+          condition:
+            lambda: 'return ${relay2_inching_enabled} && ${relay2_inverted};'
+          then:
+            - delay: ${relay2_inch_duration}
+            - switch.turn_on: relay2
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+      icon: mdi:ip-network
+      entity_category: diagnostic
+    ssid:
+      name: "Connected SSID"
+      icon: mdi:wifi-strength-2
+      entity_category: diagnostic
+    mac_address:
+      name: "Mac Address"
+      icon: mdi:network-pos
+      entity_category: diagnostic
+
+  #  Creates a sensor showing when the device was last restarted
+  - platform: template
+    name: 'Last Restart'
+    id: device_last_restart
+    icon: mdi:clock
+    entity_category: diagnostic
+#    device_class: timestamp
+
+time:
+  - platform: sntp
+    id: sntp_time
+  # Define the timezone of the device
+    timezone: "${timezone}"
+  # Change sync interval from default 5min to 6 hours (or as set in substitutions)
+    update_interval: ${sntp_update_interval}
+  # Set specific sntp servers to use
+    servers:
+      - "${sntp_server_1}"
+      - "${sntp_server_2}"
+      - "${sntp_server_3}"
+  # Publish the time the device was last restarted
+    on_time_sync:
+      then:
+        # Update last restart time, but only once.
+        - if:
+            condition:
+              lambda: 'return id(device_last_restart).state == "";'
+            then:
+              - text_sensor.template.publish:
+                  id: device_last_restart
+                  state: !lambda 'return id(sntp_time).now().strftime("%a %d %b %Y - %I:%M:%S %p");'
