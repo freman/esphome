@@ -65,7 +65,7 @@ and just override the substitutions you need per physical device:
 
 ```yaml
 packages:
-  base: github://freman/esphome/esp32/esp32_relay_x2/esp32_relay_x2.yaml@main
+  base: github://freman/esphome/esp32/esp32_relay_x2/esp32_relay_x2.yaml@master
 
 substitutions:
   name: "garage-door"

@@ -8,7 +8,7 @@ substitutions:
   # Description as appears in ESPHome & top of webserver page
   device_description: "esp32 dual relay"
   # Project Name
-  project_name: "China ESP32 Dual relay board"
+  project_name: "freman.esp32_relay_x2"
   # Project version denotes the release version of the yaml file, allowing checking of deployed vs latest version
   project_version: "v1"
   # Restore the relays upon reboot to state:
